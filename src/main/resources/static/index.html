@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+  <title>Chat Room </title>
+
+  <link href="/webjars/bootstrap/css/bootstrap.min.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="/sample.css">
+  <script src="/webjars/jquery/jquery.min.js"></script>
+  <script src="/webjars/sockjs-client/sockjs.min.js"></script>
+  <script src="/webjars/stomp-websocket/stomp.min.js"></script>
+
+
+</head>
+<body class="bg-dark " style="background-color: #337ab7; width: 100%;" >
+<div id="name-from" class="bg-primary d-flex align-items-center">
+  <div class="container-fluid">
+    <div class="row">
+      <h1 style="align-items:center;margin-left: 23%; margin-top: 5%;"> Welcome to EsparkBiz-secret chat room</h1>
+      <div class="col-md-4 offset-md-4" style="margin-left: 40%;margin-top: 5%;">
+        <div class="input-group">
+          <input type="text"
+                 placeholder="Enter your name"
+                 id="name-value"
+                 autofocus
+                 class="form-control"
+          >
+          <div class="input-group-append">
+            <button type="submit" class="btn btn-dark" id="login" style="margin-top: 2%;">Enter</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<div id="chat-room" class="d-none" >
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-md-6 offset-md-3" >
+        <div class="card mt-3" >
+          <div class="card-header">
+            <h3 id="name-title"></h3>
+          </div>
+          <div class="card-body"  >
+            <div class="input-group" style="margin-top: 3%;style=width:200px" >
+              <input type="text"
+                     placeholder="Enter your message "
+                     id="message-value"
+                     autofocus
+                     class="form-control" >
+              <input type="file" id="file-input" style="style=width:200px" >
+              <br>
+              <div class="input-group-append"style="margin-top: 2%;">
+                <button class="btn btn-dark"   id="send-btn" onclick="sendMessage()">Send</button>
+              </div>
+            </div>
+            <div class="table-responsive mt-3" style="margin-left: 40%;">
+              <table id="message-container-table">
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
+<script>
+document.getElementById("chat-room").style.display = "none";
+
+var stompClient=null
+
+<!--function sendMessage(){-->
+
+<!-- //   let fileInput = document.getElementById("file-input");-->
+<!--  // console.log(fileInput);-->
+<!--   // let file = fileInput.files[0];-->
+<!--   // let reader = new FileReader();-->
+<!--   // reader.readAsDataURL(file);-->
+
+<!--  //  reader.onload = function () {-->
+
+<!--    let jsonOb = {-->
+<!--      name: localStorage.getItem("name"),-->
+<!--      content: $("#message-value").val(),-->
+<!--      //image: reader.result // Base64-encoded string of image data-->
+<!--    };-->
+<!--    document.getElementById("message-value").value="";-->
+
+<!--    stompClient.send("/app/message",{},JSON.stringify(jsonOb));-->
+<!-- }-->
+function sendMessage() {
+  let fileInput = document.getElementById("file-input");
+  
+  let file = fileInput.files[0];
+ if (!file) {
+    let jsonOb = {
+        name: localStorage.getItem("name"),
+        content: $("#message-value").val(),
+     };
+      document.getElementById("message-value").value = "";
+      document.getElementById("file-input").value = "";
+      stompClient.send("/app/message", {}, JSON.stringify(jsonOb));
+  }else{
+    let reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = function () {
+    let jsonOb = {
+        name: localStorage.getItem("name"),
+        content: $("#message-value").val(),
+        image: reader.result // Base64-encoded string of image data
+     };
+      document.getElementById("message-value").value = "";
+      document.getElementById("file-input").value = "";
+      stompClient.send("/app/message", {}, JSON.stringify(jsonOb));
+  };
+
+  }
+
+}
+function connect()
+{
+        let socket=new SockJS("/server1")
+        stompClient=Stomp.over(socket)
+        stompClient.connect({},function(frame){
+            console.log("Connected : "+frame)
+            document.getElementById("name-from").style.display = "none";
+             document.getElementById("chat-room").style.display = "block";
+
+                stompClient.subscribe("/topic/return-to",function(response){
+                        showMessage(JSON.parse(response.body))
+                })
+        })
+}
+
+ function showMessage(message)
+ {
+    if(message.image == null){
+    $("#message-container-table").prepend(`<tr><td><b>${message.name} :</b> ${message.contect}</td></tr>`)
+    }else{
+    $("#message-container-table").prepend(`<tr><td><b>${message.name} :</b> ${message.contect}</td><td><img src=${message.image}  style="margin-left: 2%;height: 100px; width:100px"></img></tr>`)
+    }
+
+ }
+
+$(document).ready((e)=>{
+
+   $("#login").click(()=>{
+
+       let name=$("#name-value").val()
+       localStorage.setItem("name",name)
+       $("#name-title").html(`Welcome , <b>${name} </b>`)
+       connect();
+   })
+
+
+
+$("#logout").click(()=>{
+
+    localStorage.removeItem("name")
+    if(stompClient!==null)
+    {
+        stompClient.disconnect()
+
+         $("#name-from").removeClass('d-none')
+         $("#chat-room").addClass('d-none')
+         console.log(stompClient)
+    }
+
+})
+
+})
+</script>
+</body>
+</html>
